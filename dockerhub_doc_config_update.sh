@@ -67,6 +67,7 @@ function generate_official_image_tags() {
 	case $os in
 		"ubuntu") distro="focal" ;;
         "centos") distro="centos7" ;;
+		"alpine") distro="alpine3" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=$os;;
 	esac
