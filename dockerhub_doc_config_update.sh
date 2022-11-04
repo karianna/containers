@@ -73,6 +73,7 @@ function generate_official_image_tags() {
 		"ubuntu") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		"ubi") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
         "centos") distro="centos7" ;;
+		"alpine") distro="alpine3" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=$os;;
 	esac
