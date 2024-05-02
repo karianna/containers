@@ -22,14 +22,17 @@
 #
 set -o pipefail
 
-# shellcheck source=common_functions.sh
-source ./common_functions.sh
-
 if [[ -z "$1" ]]; then
 	official_docker_image_file="eclipse-temurin"
 else
 	official_docker_image_file="$1"
 fi
+
+supported_versions="8 11 17 21 22"
+# set this to the latest LTS version
+latest_version="21"
+all_jvms="hotspot"
+all_packages="jdk jre"
 
 # Fetch the latest manifest from the official repo
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
@@ -37,9 +40,6 @@ wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-lib
 oses="alpine ubuntu centos ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="jammy"
-
-# shellcheck disable=SC2034 # used externally
-hotspot_latest_tags="latest"
 
 git_repo="https://github.com/adoptium/containers/blob/master"
 
@@ -58,6 +58,7 @@ print_official_header() {
 	print_official_text "             Stewart Addison <sxa@redhat.com> (@sxa)"
 	print_official_text "GitRepo: https://github.com/adoptium/containers.git"
 	print_official_text "GitFetch: refs/heads/main"
+	print_official_text "Builder: buildkit"
 }
 
 function generate_official_image_tags() {
@@ -94,16 +95,11 @@ function generate_official_image_tags() {
 	if [ "${pkg}" == "jdk" ]; then
 		jdk_tag="${ver}-${distro}"
 		all_tags="${all_tags}, ${jdk_tag}"
-		# jdk builds also have additional tags
-		# Add the "latest", "hotspot" and "openj9" tags for the right version
+		# make "eclipse-temurin:latest" point to newest supported JDK
+		# shellcheck disable=SC2154
 		if [ "${ver}" == "${latest_version}" ]; then
-			# Commented out as this added the -hotspot tag which we don't need for temurin
-			# vm_tags_val="${vm}-${distro}"
-			# shellcheck disable=SC2154
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
-				# Commented out as this added the -hotspot tag which we don't need for temurin
-				# extra_ver_tags="${extra_ver_tags}, ${pkg}"
 			fi
 		fi
 	fi
@@ -153,6 +149,10 @@ function print_official_image_file() {
 		# See if there are any changes between the two commit sha's
 		if git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" >/dev/null 2>&1; then
 			diff_count=$(git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" | wc -l)
+			# check for diff in the entrypoint.sh file
+			if [ -f "$dfdir/entrypoint.sh" ]; then
+				diff_count=$((diff_count + $(git diff "$gitcommit:$dfdir/entrypoint.sh" "$official_gitcommit:$dfdir/entrypoint.sh" | wc -l)))
+			fi
 		else
 			# Forcefully sets a diff if the file doesn't exist
 			diff_count=1
@@ -177,8 +177,8 @@ function print_official_image_file() {
 	  echo "Architectures: ${arches}"
 	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
-	  echo "File: ${dfname}"
 	  if [ $os == "windows" ]; then
+	  	echo "Builder: classic"
 		echo "Constraints: ${constraints}"
 	  fi
 	  echo ""
@@ -232,18 +232,20 @@ do
 		do
 			for os in ${oses}
 			do
-				for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
+				for file in $(find . -name "Dockerfile" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
 				do
-					# file will look like ./12/jdk/debian/Dockerfile.openj9.nightly.slim
+					# file will look like ./19/jdk/alpine/Dockerfile.releases.full
 					# dockerfile name
 					dfname=$(basename "${file}")
 					# dockerfile dir
 					dfdir=$(dirname $file | cut -c 3-)
 					os=$(echo "${file}" | awk -F '/' '{ print $4 }')
 					# build = release or nightly
-					build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
+					# build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
+					build="release"
 					# btype = full or slim
-					btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
+					# btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
+					build="full"
 					generate_official_image_info
 				done
 			done

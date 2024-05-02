@@ -1,6 +1,6 @@
 # Containers
-
 [![DockerPulls](https://img.shields.io/docker/pulls/_/eclipse-temurin?label=Docker%20Pulls)](https://hub.docker.com/_/eclipse-temurin)
+[![Docker Stars](https://img.shields.io/docker/stars/_/eclipse-temurin?label=Docker%20Stars)](https://hub.docker.com/r/_/eclipse-temurin)
 
 This repository contains the Dockerfiles for the official [Adoptium](https://adoptium.net) images of the Eclipse Temurin distribution (OpenJDK). These images are made available in Docker Hub.
 
@@ -8,14 +8,33 @@ If you are looking for the usage README then please head to the [Official Docker
 
 ## Supported Images
 
-In general, we support Alpine, CentOS, Ubuntu and Windows containers.
+In general, we support Alpine, CentOS, UBI, Ubuntu and Windows containers.
 
-[List of Support Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
+[List of Supported Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
 
 ## Update Policy
 
-As these are official Docker Hub images, Docker Inc maintains the base image and so any CVEs in the base O/S layer gets updated by them in short order.
-For JDK version updates, we release on a quarterly cadence whenever a Patch Set Update (PSU) is available.
+As these are official Docker Hub images, Docker Inc maintains the base image
+and so any critical CVEs in the base O/S layer gets updated by them in short
+order.
+
+Note that the eclipse-temurin images include `openssl` as a prerequisite of
+the `wget` and `ca-certificates` packages but they are NOT included in the
+Ubuntu base image so updates to openssl will not necessarily trigger an
+rebuild to pick up fixes.  In general, low severity vulnerabilities can wait
+until the next rebuild.  See
+[this comment](https://github.com/docker-library/official-images/issues/16225#issuecomment-1942193224)
+for some details and also the
+[docker-library FAQ](https://github.com/docker-library/faq/tree/master?tab=readme-ov-file#image-building).
+
+The Debian and Ubuntu images are generally also built periodically (about
+once a month) and may also be triggered by dockerhub if another high
+security vulnerability is detected, such as in openssl.  Adoptium has no
+mechanism - other than putting an update to the Dockerfiles - to explicitly
+trigger a rebuild at dockerhub.
+
+For JDK version updates, we update the dockerfiles and release on a
+quarterly cadence Temurin releases a Patch Set Update (PSU).
 
 ## Maintenance of Dockerfiles
 
@@ -24,19 +43,15 @@ This section is for maintainers of the containers repository.
 ### Hourly automated Job
 
 A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins which triggers the
-[`./update_all.sh`](./update_all.sh) script to update the Dockerfiles by creating a Pull Request containing any changes.
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) script to update the Dockerfiles by creating a Pull Request containing any changes.
 
-#### update_all.sh
+#### generate_dockerfiles.py
 
-[`./update_all.sh`](./update_all.sh) is a wrapper script to control what is passed into [`./update_multiarch.sh`](./update_multiarch.sh).
-
-#### update_multiarch.sh
-
-[`./update_multiarch.sh`](./update_multiarch.sh) loops around the configuration for which versions and architectures are supported in [`./common_functions.sh`](./common_functions.sh) and uses a bunch of small functions in [`./dockerfile_functions.sh`](./dockerfile_functions.sh) to write the Dockerfiles.
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) is a python script which uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the latest artefacts for each release.
 
 ### Manual Release
 
-During a release you can also run [`./update_all.sh`](./update_all.sh) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
+During a release you can also run [`./generate_dockerfiles.py`](./generate_dockerfiles.py) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
 
 ### Review and Merge PR
 
